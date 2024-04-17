@@ -1,5 +1,6 @@
 // registry
 import 'package:avian_terminal/main.dart';
+import 'package:glob/glob.dart';
 import 'package:sprintf/sprintf.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -100,7 +101,6 @@ class MetaCommand extends Command {
 }
 
 // cd command
-// cd command
 class CdCommand extends Command {
   CdCommand() : super("cd", "Change directory");
 
@@ -186,9 +186,13 @@ class LsCommand extends Command {
 
   @override
   Iterable<Map<String, dynamic>> onCommand(List<String> a) sync* {
+    String pattern = a.isNotEmpty ? a[0] : '*';
+    Glob globPattern = Glob(pattern);
+
     yield {
       'text': archiveManager
-          .lsDirLocal(a.isNotEmpty && a[0] == "*" ? "*" : dir)
+          .lsDirLocal(dir)
+          .where((path) => globPattern.matches(path))
           .join("\n")
     };
   }
