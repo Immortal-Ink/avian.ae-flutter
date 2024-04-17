@@ -4,6 +4,7 @@ import 'package:avian_terminal/archive_manager.dart';
 import 'package:avian_terminal/command.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:padded/padded.dart';
@@ -16,11 +17,25 @@ ArchiveManager archiveManager =
 
 BehaviorSubject<String> historyPipe = BehaviorSubject();
 BehaviorSubject<String> dirStream = BehaviorSubject();
+// BehaviorSubject<String> dirStream = BehaviorSubject.seeded('\u2302 home');
+// String formatDirStream(String path) {
+//   // Prepend the Unicode character to the string if it doesn't already start with it
+//   if (!path.startsWith('\u2302 home')) {
+//     path = '\u2302 home' + ' > ' + path;
+//   }
+//
+//   // Replace all occurrences of '/'
+//   path = path.replaceAll('/', ' > ');
+//
+//   return path;
+// }
 
-void main() => runApp(Terminal());
+void main() => runApp(const Terminal());
 String lastUser = "guest";
 
 class Terminal extends StatelessWidget {
+  const Terminal({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -28,12 +43,12 @@ class Terminal extends StatelessWidget {
       theme: ThemeData.dark()
           .copyWith(
               colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.cyan,
+            seedColor: Colors.cyanAccent, // cursor color
           ))
           .copyWith(
             textTheme: ThemeData.dark().textTheme.apply(fontFamily: "Font"),
           ),
-      home: Screen(),
+      home: const Screen(),
     );
   }
 }
@@ -55,20 +70,20 @@ class Screen extends StatelessWidget {
               Container(
                 width: 80,
               ),
-              Expanded(child: TerminalView())
+              const Expanded(child: TerminalView())
             ],
           ),
         ),
-        Gap(50),
+        const Gap(50),
         Container(
-          height: 21,
+          height: 28,
           color: Colors.cyan.withOpacity(0.5),
           child: Row(children: [
-            Gap(14),
-            dirStream.build((dir) => Text(dir.isEmpty ? "/" : dir)),
-            Spacer(),
+            const Gap(14),
+            dirStream.build((dir) => Text(dir.isEmpty ? "\u2302" : dir)),
+            const Spacer(),
             Text(lastUser),
-            Gap(14)
+            const Gap(14)
           ]),
         )
       ],
@@ -86,6 +101,7 @@ class TerminalView extends StatefulWidget {
 
 class _TerminalViewState extends State<TerminalView> {
   TextEditingController controller = TextEditingController();
+  List<String> commandHistory = [];
   FocusNode f = FocusNode();
   bool ready = false;
   List<String> history = [];
@@ -143,41 +159,55 @@ class _TerminalViewState extends State<TerminalView> {
             child: ListView(
               children: [
                 ...history.map((e) => TerminalText(text: e, user: widget.user)),
-                Gap(kIsWeb ? 3 : 4),
+                const Gap(kIsWeb ? 3 : 4),
                 if (ready)
-                  TextField(
-                    autofocus: true,
-                    controller: controller,
-                    focusNode: f,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: Colors.cyan),
-                    decoration: InputDecoration(
-                        isDense: true,
-                        prefix: Text("${widget.user} \u00BB "),
-                        prefixStyle: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: Colors.cyan),
-                        contentPadding: EdgeInsets.only(bottom: 4),
-                        border: InputBorder.none),
-                    onSubmitted: (s) => setState(() {
-                      lastUser = widget.user;
-                      if (s.trim().isEmpty) {
-                        f.requestFocus();
-                        return;
+                  RawKeyboardListener(
+                    focusNode: FocusNode(),
+                    onKey: (RawKeyEvent event) {
+                      if (event is RawKeyUpEvent &&
+                          event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                        if (commandHistory.isNotEmpty) {
+                          controller.text = commandHistory.last;
+                        }
                       }
-                      if (s.trim().toLowerCase() == "cls") {
-                        controller.clear();
-                        history.clear();
-                        return;
-                      }
-                      history.add("${widget.user} \u00BB ${s.trim()}");
+                    },
+                    child: TextField(
+                      autofocus: true,
+                      controller: controller,
+                      focusNode: f,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: Colors.white), // active text color
+                      decoration: InputDecoration(
+                          isDense: true,
+                          prefix: Text("${widget.user} \u0024 "),
+                          prefixStyle: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                  color: Colors.cyanAccent), // user color
+                          contentPadding: const EdgeInsets.only(bottom: 4),
+                          border: InputBorder.none),
+                      onSubmitted: (s) => setState(() {
+                        lastUser = widget.user;
+                        if (s.trim().isEmpty) {
+                          f.requestFocus();
+                          return;
+                        }
+                        if (s.trim().toLowerCase() == "cls") {
+                          controller.clear();
+                          history.clear();
+                          return;
+                        }
+                        history.add("${widget.user} \u0024 ${s.trim()}");
+                        commandHistory.add(s
+                            .trim()); // Add the command to the commandHistory list for recall
 
-                      controller.clear();
-                      history.addAll(execute(s.trim()));
-                    }),
+                        controller.clear();
+                        history.addAll(execute(s.trim()));
+                      }),
+                    ),
                   )
               ],
             ),
@@ -197,10 +227,10 @@ class TerminalText extends StatelessWidget {
   Widget build(BuildContext context) {
     Text w = Text(text,
         style: TextStyle(
-            color: text.startsWith("${user} \u00BB")
-                ? Colors.cyan
-                : Colors.blueGrey));
-    if (!text.startsWith("${user} \u00BB") && !false) {
+            color: text.startsWith("$user \u0024")
+                ? Colors.cyan // submitted command color
+                : Colors.white.withOpacity(0.7)));
+    if (!text.startsWith("$user \u0024") && !false) {
       return TypeWriterText(text: w, maintainSize: false, duration: 16.ms);
     }
     return w;

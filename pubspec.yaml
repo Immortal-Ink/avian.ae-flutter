@@ -48,6 +48,8 @@ dependencies:
   rxdart: ^0.27.7
   padded: ^1.0.1
   animated_text_kit: ^4.2.2
+  colored_text: ^0.0.1
+  url_launcher: ^6.2.6
 
 dev_dependencies:
   flutter_test:

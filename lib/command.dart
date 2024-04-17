@@ -1,6 +1,7 @@
 // registry
 import 'package:avian_terminal/main.dart';
 import 'package:sprintf/sprintf.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 String dir = "";
 
@@ -8,6 +9,7 @@ List<Command> commands = [
   HelpCommand(),
   EchoCommand(),
   WhoAmICommand(),
+  MetaCommand(),
   CdCommand(),
   LsCommand(),
   OpenCommand(),
@@ -47,14 +49,57 @@ class HelpCommand extends Command {
   @override
   Iterable<Map<String, dynamic>> onCommand(List<String> a) sync* {
     for (Command c in commands) {
-      yield {
-        'text': sprintf(
-            "%-15s %-15s %-30s", [c.name, c.aliases.join(', '), c.description]),
-      };
+      String aliases = c.aliases.isNotEmpty ? " [${c.aliases.join(', ')}]" : "";
+      String formattedName = sprintf("%-20s", [c.name + aliases]);
+      String formattedDescription = sprintf("\t%-20s", [c.description]);
+      yield {'text': "${formattedName}${formattedDescription}"};
+      if (c.arguments.isNotEmpty) {
+        yield {'text': "\t\toptions"};
+        for (var arg in c.arguments.entries) {
+          String formattedString =
+              sprintf("\t\t\t%-10s   %s", ["<${arg.key}>", "${arg.value}"]);
+          yield {'text': formattedString};
+        }
+      }
     }
   }
 }
 
+// meta command
+class MetaCommand extends Command {
+  MetaCommand()
+      : super("meta", "Provides links to various platforms", arguments: {
+          "discord": "Directly opens a link to our discord server",
+          "website": "Opens the publishing website in a new tab",
+          "kofi":
+              "Takes you to our KoFi so you can financially support our warmongering",
+          "comic": "Opens the comic in a new tab"
+        });
+
+  @override
+  Iterable<Map<String, dynamic>> onCommand(List<String> a) sync* {
+    Map<String, String> links = {
+      "discord": "https://discord.gg/A8YdS9tTh2",
+      "website": "https://immortal.ink",
+      "kofi": "https://ko-fi.com/immortalink",
+      "comic": "https://comic.immortal.ink"
+    };
+
+    for (String arg in a) {
+      if (links.containsKey(arg)) {
+        launch(links[arg]!); // This will launch the URL in the default browser
+        yield {'text': links[arg]};
+      } else {
+        yield {
+          'text':
+              "$arg is not a recognized argument. Use `help` for a list of available arguments."
+        };
+      }
+    }
+  }
+}
+
+// cd command
 // cd command
 class CdCommand extends Command {
   CdCommand() : super("cd", "Change directory");
@@ -68,6 +113,10 @@ class CdCommand extends Command {
         List<String> g = dir.split("/").reversed.toList();
         g.removeAt(0);
         dir = g.reversed.join("/");
+        dirStream.add(dir);
+        yield {'text': "In $dir"};
+      } else if (dir.isNotEmpty) {
+        dir = "";
         dirStream.add(dir);
         yield {'text': "In $dir"};
       } else {
@@ -93,6 +142,43 @@ class CdCommand extends Command {
     }
   }
 }
+// class CdCommand extends Command {
+//   CdCommand() : super("cd", "Change directory");
+//
+//   @override
+//   Iterable<Map<String, dynamic>> onCommand(List<String> a) sync* {
+//     String np = "$dir/${a[0]}";
+//
+//     if (a[0] == "..") {
+//       if (dir.contains("/")) {
+//         List<String> g = dir.split("/").reversed.toList();
+//         g.removeAt(0);
+//         dir = g.reversed.join("/");
+//         dirStream.add(dir);
+//         yield {'text': "In $dir"};
+//       } else {
+//         yield {'text': "Can't go up."};
+//       }
+//
+//       return;
+//     } else if (a[0].startsWith("/")) {
+//       if (archiveManager.hasDir(a[0].substring(1))) {
+//         dir = a[0].substring(1);
+//         dirStream.add(dir);
+//         yield {'text': "In $dir"};
+//       } else {
+//         yield {"text": "$np not a directory"};
+//       }
+//       return;
+//     } else if (archiveManager.hasDir(np)) {
+//       dir = np;
+//       dirStream.add(dir);
+//       yield {'text': "In $dir"};
+//     } else {
+//       yield {"text": "$np not a directory"};
+//     }
+//   }
+// }
 
 // ls command
 class LsCommand extends Command {
@@ -145,7 +231,11 @@ abstract class Command {
   final String name;
   final String description;
   final List<String> aliases;
-  Command(this.name, this.description, {this.aliases = const []});
+  Map<String, String> arguments;
+
+  Command(this.name, this.description,
+      {this.aliases = const [], this.arguments = const {}});
+
   bool matches(String q) =>
       name.toLowerCase() == q.toLowerCase() ||
       aliases.any((element) => element.toLowerCase() == q.toLowerCase());
