@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
-import 'package:padded/padded.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:toxic/toxic.dart';
 import 'package:typewritertext/typewritertext.dart';
@@ -16,8 +16,8 @@ ArchiveManager archiveManager =
     ArchiveManager(asset: "assets/assets.zip", password: null);
 
 BehaviorSubject<String> historyPipe = BehaviorSubject();
+// BehaviorSubject<String> dirStream = BehaviorSubject();
 BehaviorSubject<String> dirStream = BehaviorSubject();
-// BehaviorSubject<String> dirStream = BehaviorSubject.seeded('\u2302 home');
 // String formatDirStream(String path) {
 //   // Prepend the Unicode character to the string if it doesn't already start with it
 //   if (!path.startsWith('\u2302 home')) {
@@ -61,26 +61,42 @@ class Screen extends StatelessWidget {
     return Scaffold(
         body: Column(
       children: [
+        // Top Bar
         Container(
-          height: 50,
+          // color: Colors.red,
+          height: 70,
         ),
         Expanded(
           child: Row(
             children: [
+              // Left Bar
               Container(
-                width: 80,
+                // color: Colors.blue,
+                width: 70,
               ),
-              const Expanded(child: TerminalView())
+              const Expanded(child: TerminalView()),
+              // Right Bar
+              Container(
+                // color: Colors.red,
+                width: 70,
+              )
             ],
           ),
         ),
         const Gap(50),
+        // Bottom Bar
         Container(
           height: 28,
           color: Colors.cyan.withOpacity(0.5),
           child: Row(children: [
             const Gap(14),
-            dirStream.build((dir) => Text(dir.isEmpty ? "\u2302" : dir)),
+            SvgPicture.asset(
+              'assets/viper.svg',
+              color: Colors.white, // Set the color of the SVG
+              height: 16, // Set the height of the SVG
+            ),
+            const Gap(7),
+            dirStream.build((dir) => Text(dir.isEmpty ? "/" : dir)),
             const Spacer(),
             Text(lastUser),
             const Gap(14)
@@ -151,67 +167,58 @@ class _TerminalViewState extends State<TerminalView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: ListView(
         children: [
-          Expanded(
-              child: PaddingAll(
-            padding: 0,
-            child: ListView(
-              children: [
-                ...history.map((e) => TerminalText(text: e, user: widget.user)),
-                const Gap(kIsWeb ? 3 : 4),
-                if (ready)
-                  RawKeyboardListener(
-                    focusNode: FocusNode(),
-                    onKey: (RawKeyEvent event) {
-                      if (event is RawKeyUpEvent &&
-                          event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                        if (commandHistory.isNotEmpty) {
-                          controller.text = commandHistory.last;
-                        }
-                      }
-                    },
-                    child: TextField(
-                      autofocus: true,
-                      controller: controller,
-                      focusNode: f,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.white), // active text color
-                      decoration: InputDecoration(
-                          isDense: true,
-                          prefix: Text("${widget.user} \u0024 "),
-                          prefixStyle: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                  color: Colors.cyanAccent), // user color
-                          contentPadding: const EdgeInsets.only(bottom: 4),
-                          border: InputBorder.none),
-                      onSubmitted: (s) => setState(() {
-                        lastUser = widget.user;
-                        if (s.trim().isEmpty) {
-                          f.requestFocus();
-                          return;
-                        }
-                        if (s.trim().toLowerCase() == "cls") {
-                          controller.clear();
-                          history.clear();
-                          return;
-                        }
-                        history.add("${widget.user} \u0024 ${s.trim()}");
-                        commandHistory.add(s
-                            .trim()); // Add the command to the commandHistory list for recall
+          ...history.map((e) => TerminalText(text: e, user: widget.user)),
+          const Gap(kIsWeb ? 3 : 4),
+          if (ready)
+            RawKeyboardListener(
+              focusNode: FocusNode(),
+              onKey: (RawKeyEvent event) {
+                if (event is RawKeyUpEvent &&
+                    event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                  if (commandHistory.isNotEmpty) {
+                    controller.text = commandHistory.last;
+                  }
+                }
+              },
+              child: TextField(
+                autofocus: true,
+                controller: controller,
+                focusNode: f,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Colors.white), // active text color
+                decoration: InputDecoration(
+                    isDense: true,
+                    prefix: Text("${widget.user} \u0024 "),
+                    prefixStyle: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.cyanAccent), // user color
+                    contentPadding: const EdgeInsets.only(bottom: 4),
+                    border: InputBorder.none),
+                onSubmitted: (s) => setState(() {
+                  lastUser = widget.user;
+                  if (s.trim().isEmpty) {
+                    f.requestFocus();
+                    return;
+                  }
+                  if (s.trim().toLowerCase() == "cls") {
+                    controller.clear();
+                    history.clear();
+                    return;
+                  }
+                  history.add("${widget.user} \u0024 ${s.trim()}");
+                  commandHistory.add(s
+                      .trim()); // Add the command to the commandHistory list for recall
 
-                        controller.clear();
-                        history.addAll(execute(s.trim()));
-                      }),
-                    ),
-                  )
-              ],
-            ),
-          )),
+                  controller.clear();
+                  history.addAll(execute(s.trim()));
+                }),
+              ),
+            )
         ],
       ),
     );
@@ -230,7 +237,7 @@ class TerminalText extends StatelessWidget {
             color: text.startsWith("$user \u0024")
                 ? Colors.cyan // submitted command color
                 : Colors.white.withOpacity(0.7)));
-    if (!text.startsWith("$user \u0024") && !false) {
+    if (!text.startsWith("$user \u0024") && !kDebugMode) {
       return TypeWriterText(text: w, maintainSize: false, duration: 16.ms);
     }
     return w;
