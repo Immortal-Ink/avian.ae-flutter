@@ -1,16 +1,10 @@
 # avian_terminal
 
-A new Flutter project.
+This is a terminal esque ARG website or app written in flutter
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Features
+- Build with an encrypted archive and the app mounts it as a virtual filesystem at runtime
+- basic maneuverability commands like cd, ls, and open, with glob support.
+- auto populating and formatting help command
+- cls command
+- command recall or history search by pressing the up arrow
